@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Task Service API",
-    "version": "1.0.0",
-    "description": "CRUD API for tasks built with clean architecture."
+    "version": "1.1.0",
+    "description": "CRUD API for task instances with recurrence templates and on-demand generation."
   },
   "servers": [
     {
@@ -13,14 +13,14 @@
   "tags": [
     {
       "name": "Tasks",
-      "description": "Operations with tasks"
+      "description": "Operations with task instances"
     }
   ],
   "paths": {
     "/api/v1/tasks": {
       "get": {
         "tags": ["Tasks"],
-        "summary": "List tasks",
+        "summary": "List task instances",
         "responses": {
           "200": {
             "description": "Task list",
@@ -37,7 +37,7 @@
       },
       "post": {
         "tags": ["Tasks"],
-        "summary": "Create task",
+        "summary": "Create recurrence template and return latest generated instance",
         "requestBody": {
           "required": true,
           "content": {
@@ -48,7 +48,7 @@
         },
         "responses": {
           "201": {
-            "description": "Created task",
+            "description": "Created task instance",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Task" }
@@ -62,7 +62,7 @@
     "/api/v1/tasks/{id}": {
       "get": {
         "tags": ["Tasks"],
-        "summary": "Get task by ID",
+        "summary": "Get task instance by ID",
         "parameters": [
           {
             "name": "id",
@@ -85,7 +85,7 @@
       },
       "put": {
         "tags": ["Tasks"],
-        "summary": "Update task",
+        "summary": "Update task instance and optionally its recurrence template",
         "parameters": [
           {
             "name": "id",
@@ -117,7 +117,7 @@
       },
       "delete": {
         "tags": ["Tasks"],
-        "summary": "Delete task",
+        "summary": "Delete task instance",
         "parameters": [
           {
             "name": "id",
@@ -157,18 +157,23 @@
         "type": "object",
         "required": ["title"],
         "properties": {
-          "title": {
-            "type": "string",
-            "example": "Prepare release"
-          },
-          "description": {
-            "type": "string",
-            "example": "Collect release notes and check migrations"
-          },
+          "title": { "type": "string", "example": "Daily patient follow-up" },
+          "description": { "type": "string", "example": "Call post-op patients" },
           "status": {
             "type": "string",
             "enum": ["new", "in_progress", "done"],
             "example": "new"
+          },
+          "recurrence_kind": {
+            "type": "string",
+            "enum": ["one_time", "daily", "monthly_day", "specific_dates", "monthly_parity"],
+            "example": "daily"
+          },
+          "recurrence": { "$ref": "#/components/schemas/Recurrence" },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-04-07"
           }
         }
       },
@@ -176,51 +181,83 @@
         "type": "object",
         "required": ["title", "status"],
         "properties": {
-          "title": {
-            "type": "string",
-            "example": "Prepare release"
-          },
-          "description": {
-            "type": "string",
-            "example": "Collect release notes and check migrations"
-          },
+          "title": { "type": "string", "example": "Daily patient follow-up" },
+          "description": { "type": "string", "example": "Call post-op patients" },
           "status": {
             "type": "string",
             "enum": ["new", "in_progress", "done"],
             "example": "in_progress"
+          },
+          "recurrence_kind": {
+            "type": "string",
+            "enum": ["one_time", "daily", "monthly_day", "specific_dates", "monthly_parity"],
+            "example": "monthly_parity"
+          },
+          "recurrence": { "$ref": "#/components/schemas/Recurrence" },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-04-07"
           }
+        }
+      },
+      "Recurrence": {
+        "type": "object",
+        "properties": {
+          "every_n_days": { "type": "integer", "minimum": 1, "example": 2 },
+          "day_of_month": { "type": "integer", "minimum": 1, "maximum": 30, "example": 15 },
+          "dates": {
+            "type": "array",
+            "items": { "type": "string", "format": "date" },
+            "example": ["2026-04-12", "2026-05-12"]
+          },
+          "parity": { "type": "string", "enum": ["odd", "even"], "example": "odd" }
         }
       },
       "Task": {
         "type": "object",
         "properties": {
           "id": { "type": "integer", "format": "int64", "example": 1 },
-          "title": { "type": "string", "example": "Prepare release" },
-          "description": {
-            "type": "string",
-            "example": "Collect release notes and check migrations"
-          },
+          "template_id": { "type": "integer", "format": "int64", "example": 10 },
+          "title": { "type": "string", "example": "Daily patient follow-up" },
+          "description": { "type": "string", "example": "Call post-op patients" },
           "status": {
             "type": "string",
             "enum": ["new", "in_progress", "done"],
             "example": "new"
           },
+          "recurrence_kind": {
+            "type": "string",
+            "enum": ["one_time", "daily", "monthly_day", "specific_dates", "monthly_parity"],
+            "example": "daily"
+          },
+          "recurrence": { "$ref": "#/components/schemas/Recurrence" },
+          "scheduled_for": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-04-07"
+          },
+          "origin": {
+            "type": "string",
+            "enum": ["manual", "generated"],
+            "example": "generated"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "example": "2026-03-24T00:00:00Z"
+            "example": "2026-04-07T00:00:00Z"
           },
           "updated_at": {
             "type": "string",
             "format": "date-time",
-            "example": "2026-03-24T00:00:00Z"
+            "example": "2026-04-07T00:00:00Z"
           }
         }
       },
       "Error": {
         "type": "object",
         "properties": {
-          "error": { "type": "string", "example": "task not found" }
+          "error": { "type": "string", "example": "invalid task input: daily requires every_n_days >= 1" }
         }
       }
     }

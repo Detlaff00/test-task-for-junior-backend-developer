@@ -28,9 +28,12 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	created, err := h.usecase.Create(r.Context(), taskusecase.CreateInput{
-		Title:       req.Title,
-		Description: req.Description,
-		Status:      req.Status,
+		Title:          req.Title,
+		Description:    req.Description,
+		Status:         req.Status,
+		RecurrenceKind: req.RecurrenceKind,
+		Recurrence:     recurrenceInputFromDTO(req.Recurrence),
+		StartDate:      req.StartDate,
 	})
 	if err != nil {
 		writeUsecaseError(w, err)
@@ -69,10 +72,25 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var recurrenceKind *taskdomain.RecurrenceKind
+	if req.RecurrenceKind != "" {
+		kind := req.RecurrenceKind
+		recurrenceKind = &kind
+	}
+
+	var startDate *string
+	if req.StartDate != "" {
+		value := req.StartDate
+		startDate = &value
+	}
+
 	updated, err := h.usecase.Update(r.Context(), id, taskusecase.UpdateInput{
-		Title:       req.Title,
-		Description: req.Description,
-		Status:      req.Status,
+		Title:          req.Title,
+		Description:    req.Description,
+		Status:         req.Status,
+		RecurrenceKind: recurrenceKind,
+		Recurrence:     recurrenceInputFromDTO(req.Recurrence),
+		StartDate:      startDate,
 	})
 	if err != nil {
 		writeUsecaseError(w, err)
@@ -110,6 +128,15 @@ func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, response)
+}
+
+func recurrenceInputFromDTO(dto recurrenceDTO) taskusecase.RecurrenceInput {
+	return taskusecase.RecurrenceInput{
+		EveryNDays: dto.EveryNDays,
+		DayOfMonth: dto.DayOfMonth,
+		Dates:      dto.Dates,
+		Parity:     dto.Parity,
+	}
 }
 
 func getIDFromRequest(r *http.Request) (int64, error) {

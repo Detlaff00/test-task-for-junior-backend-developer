@@ -1,1 +1,36 @@
+# Build artifacts
+bin/
+dist/
+out/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go
+coverage.out
+*.coverprofile
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
 .ruby-lsp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker/dev local
+docker-data/
