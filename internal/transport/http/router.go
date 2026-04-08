@@ -2,6 +2,7 @@ package transporthttp
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 
@@ -15,6 +16,12 @@ func NewRouter(taskHandler *httphandlers.TaskHandler, docsHandler *swaggerdocs.H
 	router.HandleFunc("/swagger/openapi.json", docsHandler.ServeSpec).Methods(http.MethodGet)
 	router.HandleFunc("/swagger/", docsHandler.ServeUI).Methods(http.MethodGet)
 	router.HandleFunc("/swagger", docsHandler.RedirectToUI).Methods(http.MethodGet)
+
+	frontendDir := "frontend"
+	if _, err := os.Stat(frontendDir); err == nil {
+		fileServer := http.StripPrefix("/ui/", http.FileServer(http.Dir(frontendDir)))
+		router.PathPrefix("/ui/").Handler(fileServer).Methods(http.MethodGet)
+	}
 
 	api := router.PathPrefix("/api/v1").Subrouter()
 

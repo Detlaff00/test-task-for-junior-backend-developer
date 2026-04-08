@@ -58,6 +58,26 @@ func main() {
 		}
 	}()
 
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+
+		if err := taskUsecase.Sync(ctx); err != nil {
+			logger.Error("initial task sync", "error", err)
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := taskUsecase.Sync(ctx); err != nil {
+					logger.Error("periodic task sync", "error", err)
+				}
+			}
+		}
+	}()
+
 	logger.Info("http server started", "addr", cfg.HTTPAddr)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

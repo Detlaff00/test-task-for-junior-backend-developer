@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Task Service API",
-    "version": "1.1.0",
-    "description": "CRUD API for task instances with recurrence templates and on-demand generation."
+    "version": "1.2.0",
+    "description": "CRUD API for calendar task instances with recurrence templates, UTC time range and future planning."
   },
   "servers": [
     {
@@ -37,7 +37,7 @@
       },
       "post": {
         "tags": ["Tasks"],
-        "summary": "Create recurrence template and return latest generated instance",
+        "summary": "Create recurrence template and return nearest generated instance",
         "requestBody": {
           "required": true,
           "content": {
@@ -117,13 +117,19 @@
       },
       "delete": {
         "tags": ["Tasks"],
-        "summary": "Delete task instance",
+        "summary": "Delete task instance or whole series",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "schema": { "type": "integer", "format": "int64", "minimum": 1 }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["single", "series"], "default": "single" }
           }
         ],
         "responses": {
@@ -174,6 +180,20 @@
             "type": "string",
             "format": "date",
             "example": "2026-04-07"
+          },
+          "all_day": {
+            "type": "boolean",
+            "example": true
+          },
+          "start_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "09:00"
+          },
+          "end_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "10:00"
           }
         }
       },
@@ -198,6 +218,20 @@
             "type": "string",
             "format": "date",
             "example": "2026-04-07"
+          },
+          "all_day": {
+            "type": "boolean",
+            "example": false
+          },
+          "start_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "09:00"
+          },
+          "end_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "example": "10:00"
           }
         }
       },
@@ -205,7 +239,8 @@
         "type": "object",
         "properties": {
           "every_n_days": { "type": "integer", "minimum": 1, "example": 2 },
-          "day_of_month": { "type": "integer", "minimum": 1, "maximum": 30, "example": 15 },
+          "day_of_month": { "type": "integer", "minimum": 1, "maximum": 31, "example": 31 },
+          "months_count": { "type": "integer", "minimum": 1, "maximum": 12, "example": 3 },
           "dates": {
             "type": "array",
             "items": { "type": "string", "format": "date" },
@@ -236,6 +271,18 @@
             "type": "string",
             "format": "date",
             "example": "2026-04-07"
+          },
+          "all_day": {
+            "type": "boolean",
+            "example": false
+          },
+          "start_time": {
+            "type": "string",
+            "example": "09:00"
+          },
+          "end_time": {
+            "type": "string",
+            "example": "10:00"
           },
           "origin": {
             "type": "string",

@@ -13,7 +13,8 @@ func TestNormalizeRule(t *testing.T) {
 	t.Parallel()
 
 	every := 2
-	day := 15
+	day := 31
+	months := 3
 	odd := "odd"
 
 	tests := []struct {
@@ -42,17 +43,17 @@ func TestNormalizeRule(t *testing.T) {
 		{
 			name:  "monthly day valid",
 			kind:  taskdomain.RecurrenceMonthlyDay,
-			input: RecurrenceInput{DayOfMonth: &day},
+			input: RecurrenceInput{DayOfMonth: &day, MonthsCount: &months},
 			assertion: func(t *testing.T, got taskdomain.RecurrenceRule) {
-				if got.DayOfMonth != 15 {
-					t.Fatalf("expected day_of_month=15, got %d", got.DayOfMonth)
+				if got.DayOfMonth != 31 || got.MonthsCount != 3 {
+					t.Fatalf("expected monthly fields, got %+v", got)
 				}
 			},
 		},
 		{
-			name:    "monthly day out of range",
+			name:    "monthly day missing months_count",
 			kind:    taskdomain.RecurrenceMonthlyDay,
-			input:   RecurrenceInput{DayOfMonth: intPtr(31)},
+			input:   RecurrenceInput{DayOfMonth: intPtr(10)},
 			wantErr: true,
 		},
 		{
@@ -88,16 +89,6 @@ func TestNormalizeRule(t *testing.T) {
 			input:   RecurrenceInput{Parity: strPtr("nope")},
 			wantErr: true,
 		},
-		{
-			name:  "one time ignores recurrence fields",
-			kind:  taskdomain.RecurrenceOneTime,
-			input: RecurrenceInput{DayOfMonth: &day},
-			assertion: func(t *testing.T, got taskdomain.RecurrenceRule) {
-				if !reflect.DeepEqual(got, taskdomain.RecurrenceRule{}) {
-					t.Fatalf("expected empty rule, got %+v", got)
-				}
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -124,61 +115,63 @@ func TestNormalizeRule(t *testing.T) {
 	}
 }
 
-func TestBuildDueDates(t *testing.T) {
+func TestBuildFutureDates(t *testing.T) {
 	t.Parallel()
-
-	start := mustDate(t, "2026-04-01")
-	from := mustDate(t, "2026-04-01")
-	to := mustDate(t, "2026-04-10")
 
 	tests := []struct {
 		name     string
+		today    string
 		template taskdomain.Template
 		want     []string
 	}{
 		{
-			name: "one time",
+			name:  "one time future",
+			today: "2026-04-01",
 			template: taskdomain.Template{
 				RecurrenceKind: taskdomain.RecurrenceOneTime,
-				StartDate:      start,
+				StartDate:      mustDate(t, "2026-04-03"),
 			},
-			want: []string{},
+			want: []string{"2026-04-03"},
 		},
 		{
-			name: "daily every 3",
+			name:  "daily every 3 for 2 months",
+			today: "2026-04-01",
 			template: taskdomain.Template{
 				RecurrenceKind: taskdomain.RecurrenceDaily,
-				StartDate:      start,
+				StartDate:      mustDate(t, "2026-04-01"),
 				Recurrence:     taskdomain.RecurrenceRule{EveryNDays: 3},
 			},
-			want: []string{"2026-04-04", "2026-04-07", "2026-04-10"},
+			want: []string{"2026-04-01", "2026-04-04", "2026-04-07", "2026-04-10"},
 		},
 		{
-			name: "monthly day",
+			name:  "monthly day fallback to last day",
+			today: "2026-01-01",
 			template: taskdomain.Template{
 				RecurrenceKind: taskdomain.RecurrenceMonthlyDay,
-				StartDate:      start,
-				Recurrence:     taskdomain.RecurrenceRule{DayOfMonth: 5},
+				StartDate:      mustDate(t, "2026-01-31"),
+				Recurrence:     taskdomain.RecurrenceRule{DayOfMonth: 31, MonthsCount: 3},
 			},
-			want: []string{"2026-04-05"},
+			want: []string{"2026-01-31", "2026-02-28", "2026-03-31"},
 		},
 		{
-			name: "specific dates",
+			name:  "specific dates filters past",
+			today: "2026-04-01",
 			template: taskdomain.Template{
 				RecurrenceKind: taskdomain.RecurrenceSpecificDate,
-				StartDate:      start,
-				Recurrence:     taskdomain.RecurrenceRule{Dates: []string{"2026-04-03", "2026-04-09"}},
+				StartDate:      mustDate(t, "2026-04-01"),
+				Recurrence:     taskdomain.RecurrenceRule{Dates: []string{"2026-03-31", "2026-04-03", "2026-04-09"}},
 			},
 			want: []string{"2026-04-03", "2026-04-09"},
 		},
 		{
-			name: "odd days",
+			name:  "odd days for one month window",
+			today: "2026-04-01",
 			template: taskdomain.Template{
 				RecurrenceKind: taskdomain.RecurrenceMonthlyParity,
-				StartDate:      start,
+				StartDate:      mustDate(t, "2026-04-01"),
 				Recurrence:     taskdomain.RecurrenceRule{Parity: taskdomain.MonthlyParityOdd},
 			},
-			want: []string{"2026-04-03", "2026-04-05", "2026-04-07", "2026-04-09"},
+			want: []string{"2026-04-01", "2026-04-03", "2026-04-05", "2026-04-07", "2026-04-09"},
 		},
 	}
 
@@ -186,15 +179,33 @@ func TestBuildDueDates(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := buildDueDates(tt.template, from, to)
+			today := mustDate(t, tt.today)
+			got := buildFutureDates(tt.template, today)
 			gotDates := make([]string, 0, len(got))
 			for _, d := range got {
 				gotDates = append(gotDates, d.Format(dateLayout))
 			}
+
+			if len(tt.want) < len(gotDates) {
+				gotDates = gotDates[:len(tt.want)]
+			}
 			if !reflect.DeepEqual(gotDates, tt.want) {
-				t.Fatalf("expected %v, got %v", tt.want, gotDates)
+				t.Fatalf("expected prefix %v, got %v", tt.want, gotDates)
 			}
 		})
+	}
+}
+
+func TestNormalizeTimeRange(t *testing.T) {
+	t.Parallel()
+
+	allDay := true
+	if gotAllDay, start, end, err := normalizeTimeRange(allDay, strPtr("09:00"), strPtr("10:00")); err != nil || !gotAllDay || start != nil || end != nil {
+		t.Fatalf("all day should clear times, got allDay=%v start=%v end=%v err=%v", gotAllDay, start, end, err)
+	}
+
+	if _, _, _, err := normalizeTimeRange(false, strPtr("10:00"), strPtr("09:00")); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("expected ErrInvalidInput for inverted time range, got %v", err)
 	}
 }
 

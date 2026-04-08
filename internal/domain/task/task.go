@@ -34,11 +34,19 @@ const (
 	OriginGenerated Origin = "generated"
 )
 
+type DeleteScope string
+
+const (
+	DeleteScopeSingle DeleteScope = "single"
+	DeleteScopeSeries DeleteScope = "series"
+)
+
 type RecurrenceRule struct {
-	EveryNDays int           `json:"every_n_days,omitempty"`
-	DayOfMonth int           `json:"day_of_month,omitempty"`
-	Dates      []string      `json:"dates,omitempty"`
-	Parity     MonthlyParity `json:"parity,omitempty"`
+	EveryNDays  int           `json:"every_n_days,omitempty"`
+	DayOfMonth  int           `json:"day_of_month,omitempty"`
+	MonthsCount int           `json:"months_count,omitempty"`
+	Dates       []string      `json:"dates,omitempty"`
+	Parity      MonthlyParity `json:"parity,omitempty"`
 }
 
 type Task struct {
@@ -51,6 +59,9 @@ type Task struct {
 	RecurrenceKind RecurrenceKind `json:"recurrence_kind"`
 	Recurrence     RecurrenceRule `json:"recurrence"`
 	ScheduledFor   time.Time      `json:"scheduled_for"`
+	AllDay         bool           `json:"all_day"`
+	StartTime      *string        `json:"start_time,omitempty"`
+	EndTime        *string        `json:"end_time,omitempty"`
 	Origin         Origin         `json:"origin"`
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
@@ -64,6 +75,9 @@ type Template struct {
 	RecurrenceKind RecurrenceKind
 	Recurrence     RecurrenceRule
 	StartDate      time.Time
+	AllDay         bool
+	StartTime      *string
+	EndTime        *string
 	Active         bool
 	GeneratedUntil time.Time
 	CreatedAt      time.Time
@@ -100,6 +114,15 @@ func (p MonthlyParity) Valid() bool {
 func (o Origin) Valid() bool {
 	switch o {
 	case OriginManual, OriginGenerated:
+		return true
+	default:
+		return false
+	}
+}
+
+func (d DeleteScope) Valid() bool {
+	switch d {
+	case DeleteScopeSingle, DeleteScopeSeries:
 		return true
 	default:
 		return false

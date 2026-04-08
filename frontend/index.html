@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Интерфейс Task Service</title>
+    <link rel="stylesheet" href="/ui/styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="layout">
+      <header class="hero">
+        <p class="eyebrow">Сервис задач</p>
+        <h1>Периодические задачи</h1>
+        <p class="subtitle">Создание шаблонов и просмотр сгенерированных экземпляров.</p>
+      </header>
+
+      <section class="panel form-panel">
+        <h2>Создать задачу</h2>
+        <form id="task-form">
+          <label>Название
+            <input name="title" required placeholder="Ежедневный обзвон" />
+          </label>
+
+          <label>Описание
+            <textarea name="description" rows="3" placeholder="Позвонить пациентам"></textarea>
+          </label>
+
+          <div class="grid-two">
+            <label>Статус
+              <select name="status">
+                <option value="new">Новая</option>
+                <option value="in_progress">В работе</option>
+                <option value="done">Выполнена</option>
+              </select>
+            </label>
+
+            <label>Тип периодичности
+              <select id="kind" name="recurrence_kind">
+                <option value="one_time">Разовая</option>
+                <option value="daily">Каждый N-й день</option>
+                <option value="monthly_day">Определённое число месяца</option>
+                <option value="specific_dates">Конкретные даты</option>
+                <option value="monthly_parity">Чётные/нечётные дни</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="start-date-wrap">
+            <label>Дата начала (UTC)
+              <input name="start_date" type="date" />
+            </label>
+          </div>
+
+          <label class="checkbox-label">
+            <input id="use-time" type="checkbox" />
+            Указать время (UTC)
+          </label>
+
+          <div id="time-fields" class="grid-two" style="display:none;">
+            <label>Время начала
+              <input id="start_time" type="time" />
+            </label>
+            <label>Время окончания
+              <input id="end_time" type="time" />
+            </label>
+          </div>
+
+          <div id="rule-fields"></div>
+
+          <button type="submit">Создать</button>
+          <p id="form-result" class="result"></p>
+        </form>
+      </section>
+
+      <section class="panel list-panel">
+        <div class="row">
+          <h2>Календарь задач</h2>
+          <button id="reload" type="button">Обновить данные</button>
+        </div>
+        <div class="calendar-toolbar">
+          <button id="prev-month" type="button">← Предыдущий</button>
+          <strong id="month-title"></strong>
+          <button id="next-month" type="button">Следующий →</button>
+        </div>
+        <div id="calendar" class="calendar"></div>
+      </section>
+    </main>
+
+    <div id="specific-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-modal="true"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Выбор конкретных дат">
+        <div class="modal-header">
+          <h3>Выберите конкретные даты</h3>
+          <button id="close-specific-modal" type="button" class="modal-close">Закрыть</button>
+        </div>
+        <div class="modal-toolbar">
+          <button id="specific-prev-month" type="button">←</button>
+          <strong id="specific-month-title"></strong>
+          <button id="specific-next-month" type="button">→</button>
+        </div>
+        <div id="specific-calendar" class="mini-calendar"></div>
+        <button id="create-from-specific-modal" type="button">Создать задачи на выбранные даты</button>
+      </div>
+    </div>
+
+    <div id="delete-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-backdrop" data-close-delete-modal="true"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-label="Удаление задачи">
+        <div class="modal-header">
+          <h3>Удаление задачи</h3>
+          <button id="close-delete-modal" type="button" class="modal-close">Закрыть</button>
+        </div>
+        <div class="meta">Выберите действие:</div>
+        <div class="delete-actions">
+          <button id="delete-single-btn" type="button">Удалить выбранную задачу</button>
+          <button id="delete-series-btn" type="button" class="danger">Удалить все задачи этого повторения</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/ui/app.js"></script>
+  </body>
+</html>

@@ -50,7 +50,7 @@ func TestMigrationBackfillLegacyTasks(t *testing.T) {
 	})
 }
 
-func TestRepositoryCreateInstancesOnConflict(t *testing.T) {
+func TestRepositoryEnsureFutureInstancesOnConflict(t *testing.T) {
 	testWithTempDatabase(t, false, func(ctx context.Context, testDSN string) {
 		pool, err := pgxpool.New(ctx, testDSN)
 		if err != nil {
@@ -77,11 +77,11 @@ func TestRepositoryCreateInstancesOnConflict(t *testing.T) {
 		}
 
 		targetDate := time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC)
-		if err := repo.CreateInstances(ctx, *tpl, []time.Time{targetDate}, taskdomain.OriginGenerated); err != nil {
-			t.Fatalf("create instances first: %v", err)
+		if err := repo.EnsureFutureInstances(ctx, *tpl, targetDate, []time.Time{targetDate}, taskdomain.OriginGenerated); err != nil {
+			t.Fatalf("ensure instances first: %v", err)
 		}
-		if err := repo.CreateInstances(ctx, *tpl, []time.Time{targetDate}, taskdomain.OriginGenerated); err != nil {
-			t.Fatalf("create instances second: %v", err)
+		if err := repo.EnsureFutureInstances(ctx, *tpl, targetDate, []time.Time{targetDate}, taskdomain.OriginGenerated); err != nil {
+			t.Fatalf("ensure instances second: %v", err)
 		}
 
 		var count int

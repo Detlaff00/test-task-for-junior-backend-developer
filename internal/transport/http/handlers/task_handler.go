@@ -34,6 +34,9 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		RecurrenceKind: req.RecurrenceKind,
 		Recurrence:     recurrenceInputFromDTO(req.Recurrence),
 		StartDate:      req.StartDate,
+		AllDay:         req.AllDay,
+		StartTime:      req.StartTime,
+		EndTime:        req.EndTime,
 	})
 	if err != nil {
 		writeUsecaseError(w, err)
@@ -91,6 +94,9 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		RecurrenceKind: recurrenceKind,
 		Recurrence:     recurrenceInputFromDTO(req.Recurrence),
 		StartDate:      startDate,
+		AllDay:         req.AllDay,
+		StartTime:      req.StartTime,
+		EndTime:        req.EndTime,
 	})
 	if err != nil {
 		writeUsecaseError(w, err)
@@ -107,7 +113,12 @@ func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.usecase.Delete(r.Context(), id); err != nil {
+	scope := taskdomain.DeleteScope(r.URL.Query().Get("scope"))
+	if scope == "" {
+		scope = taskdomain.DeleteScopeSingle
+	}
+
+	if err := h.usecase.Delete(r.Context(), id, scope); err != nil {
 		writeUsecaseError(w, err)
 		return
 	}
@@ -132,10 +143,11 @@ func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 
 func recurrenceInputFromDTO(dto recurrenceDTO) taskusecase.RecurrenceInput {
 	return taskusecase.RecurrenceInput{
-		EveryNDays: dto.EveryNDays,
-		DayOfMonth: dto.DayOfMonth,
-		Dates:      dto.Dates,
-		Parity:     dto.Parity,
+		EveryNDays:  dto.EveryNDays,
+		DayOfMonth:  dto.DayOfMonth,
+		MonthsCount: dto.MonthsCount,
+		Dates:       dto.Dates,
+		Parity:      dto.Parity,
 	}
 }
 

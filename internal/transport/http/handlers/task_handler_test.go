@@ -20,8 +20,9 @@ type usecaseStub struct {
 	createFn  func(ctx context.Context, input taskusecase.CreateInput) (*taskdomain.Task, error)
 	getByIDFn func(ctx context.Context, id int64) (*taskdomain.Task, error)
 	updateFn  func(ctx context.Context, id int64, input taskusecase.UpdateInput) (*taskdomain.Task, error)
-	deleteFn  func(ctx context.Context, id int64) error
+	deleteFn  func(ctx context.Context, id int64, scope taskdomain.DeleteScope) error
 	listFn    func(ctx context.Context) ([]taskdomain.Task, error)
+	syncFn    func(ctx context.Context) error
 }
 
 func (s usecaseStub) Create(ctx context.Context, input taskusecase.CreateInput) (*taskdomain.Task, error) {
@@ -45,11 +46,11 @@ func (s usecaseStub) Update(ctx context.Context, id int64, input taskusecase.Upd
 	return s.updateFn(ctx, id, input)
 }
 
-func (s usecaseStub) Delete(ctx context.Context, id int64) error {
+func (s usecaseStub) Delete(ctx context.Context, id int64, scope taskdomain.DeleteScope) error {
 	if s.deleteFn == nil {
 		return errors.New("unexpected call")
 	}
-	return s.deleteFn(ctx, id)
+	return s.deleteFn(ctx, id, scope)
 }
 
 func (s usecaseStub) List(ctx context.Context) ([]taskdomain.Task, error) {
@@ -57,6 +58,13 @@ func (s usecaseStub) List(ctx context.Context) ([]taskdomain.Task, error) {
 		return nil, errors.New("unexpected call")
 	}
 	return s.listFn(ctx)
+}
+
+func (s usecaseStub) Sync(ctx context.Context) error {
+	if s.syncFn == nil {
+		return nil
+	}
+	return s.syncFn(ctx)
 }
 
 func TestTaskHandlerCreate(t *testing.T) {
@@ -82,7 +90,7 @@ func TestTaskHandlerCreate(t *testing.T) {
 		},
 	})
 
-	payload := []byte(`{"title":"Follow up","description":"Call patient","status":"new","recurrence_kind":"daily","recurrence":{"every_n_days":2},"start_date":"2026-04-07"}`)
+	payload := []byte(`{"title":"Follow up","description":"Call patient","status":"new","recurrence_kind":"daily","recurrence":{"every_n_days":2},"start_date":"2026-04-07","all_day":false,"start_time":"09:00","end_time":"10:00"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(payload))
 	w := httptest.NewRecorder()
 
@@ -93,6 +101,9 @@ func TestTaskHandlerCreate(t *testing.T) {
 	}
 	if captured.RecurrenceKind != taskdomain.RecurrenceDaily || captured.Recurrence.EveryNDays == nil || *captured.Recurrence.EveryNDays != 2 {
 		t.Fatalf("recurrence mapping failed: %+v", captured)
+	}
+	if captured.AllDay == nil || *captured.AllDay || captured.StartTime == nil || *captured.StartTime != "09:00" {
+		t.Fatalf("time mapping failed: %+v", captured)
 	}
 
 	var body taskDTO
@@ -179,6 +190,31 @@ func TestTaskHandlerList(t *testing.T) {
 	}
 	if len(body) != 1 || body[0].TemplateID != 100 {
 		t.Fatalf("unexpected body: %+v", body)
+	}
+}
+
+func TestTaskHandlerDeleteSeriesScope(t *testing.T) {
+	t.Parallel()
+
+	var capturedScope taskdomain.DeleteScope
+	h := NewTaskHandler(usecaseStub{
+		deleteFn: func(_ context.Context, _ int64, scope taskdomain.DeleteScope) error {
+			capturedScope = scope
+			return nil
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/10?scope=series", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "10"})
+	w := httptest.NewRecorder()
+
+	h.Delete(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected status 204, got %d", w.Code)
+	}
+	if capturedScope != taskdomain.DeleteScopeSeries {
+		t.Fatalf("expected scope=series, got %s", capturedScope)
 	}
 }
 

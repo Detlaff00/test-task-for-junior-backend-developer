@@ -6,6 +6,9 @@ CREATE TABLE IF NOT EXISTS task_templates (
 	kind TEXT NOT NULL,
 	rule_json JSONB NOT NULL DEFAULT '{}'::jsonb,
 	start_date DATE NOT NULL,
+	all_day BOOLEAN NOT NULL DEFAULT TRUE,
+	start_time TEXT,
+	end_time TEXT,
 	active BOOLEAN NOT NULL DEFAULT TRUE,
 	generated_until DATE NOT NULL,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -17,6 +20,9 @@ CREATE TABLE IF NOT EXISTS tasks (
 	title TEXT NOT NULL,
 	description TEXT NOT NULL DEFAULT '',
 	status TEXT NOT NULL,
+	all_day BOOLEAN NOT NULL DEFAULT TRUE,
+	start_time TEXT,
+	end_time TEXT,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -24,6 +30,12 @@ CREATE TABLE IF NOT EXISTS tasks (
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS template_id BIGINT;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS scheduled_for DATE;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS origin TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS all_day BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS start_time TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS end_time TEXT;
+ALTER TABLE task_templates ADD COLUMN IF NOT EXISTS all_day BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE task_templates ADD COLUMN IF NOT EXISTS start_time TEXT;
+ALTER TABLE task_templates ADD COLUMN IF NOT EXISTS end_time TEXT;
 
 DO $$
 DECLARE
@@ -33,7 +45,8 @@ BEGIN
 	FOR rec IN SELECT id, title, description, status, created_at FROM tasks WHERE template_id IS NULL LOOP
 		INSERT INTO task_templates (
 			title, description, default_status, kind, rule_json,
-			start_date, active, generated_until, created_at, updated_at
+			start_date, all_day, start_time, end_time,
+			active, generated_until, created_at, updated_at
 		)
 		VALUES (
 			rec.title,
@@ -42,6 +55,9 @@ BEGIN
 			'one_time',
 			'{}'::jsonb,
 			(rec.created_at AT TIME ZONE 'UTC')::date,
+			TRUE,
+			NULL,
+			NULL,
 			TRUE,
 			(rec.created_at AT TIME ZONE 'UTC')::date,
 			rec.created_at,
@@ -52,6 +68,9 @@ BEGIN
 		UPDATE tasks
 		SET template_id = tpl_id,
 			scheduled_for = (rec.created_at AT TIME ZONE 'UTC')::date,
+			all_day = TRUE,
+			start_time = NULL,
+			end_time = NULL,
 			origin = 'manual'
 		WHERE id = rec.id;
 	END LOOP;
